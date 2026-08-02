@@ -1,5 +1,7 @@
 # 📘 Executive Summary Report & Repository Guide: Composite Deck Shear Capacity AI Integration
 
+> 🚀 **Live Interactive Web Application:** [https://sheer-capacity.streamlit.app/](https://sheer-capacity.streamlit.app/)
+
 ---
 
 > [!NOTE]  
