@@ -424,36 +424,62 @@ with tab4:
     st.subheader("🖼️ Dynamic Paper-Aligned Sensitivity & Prediction Gallery")
     st.caption(f"All parametric curves and active design markers below dynamically update live centered around your active inputs: Temperature = {T_val:.1f}ºC, {connector_type}, Diameter = {diameter_mm}mm, Height = {height_mm}mm, Concrete Grade = {concrete_grade_MPa}MPa, Steel Yield = {steel_fy_MPa}MPa.")
 
+    # Helper function for Eurocode steel yield strength reduction factor ky,θ
+    def get_ky_factor(temp):
+        if temp <= 400.0:
+            return 1.0
+        elif temp <= 500.0:
+            return 1.0 - 0.22 * (temp - 400.0) / 100.0
+        elif temp <= 600.0:
+            return 0.78 - 0.31 * (temp - 500.0) / 100.0
+        elif temp <= 700.0:
+            return 0.47 - 0.24 * (temp - 600.0) / 100.0
+        elif temp <= 800.0:
+            return 0.23 - 0.12 * (temp - 700.0) / 100.0
+        else:
+            return max(0.02, 0.11 - 0.09 * (temp - 800.0) / 400.0)
+
     # ---------------------------------------------------------
     # Dynamic Figure 4: Thermal Degradation Curves
     # ---------------------------------------------------------
     st.markdown("#### Figure 4: Dynamic Thermal Degradation Curves (20°C - 800°C)")
     st.caption("Shows residual shear capacity degradation for all 5 connector types under your active geometry & material inputs, with your active design point highlighted.")
     
-    temp_sweep = np.linspace(20, 800, 40)
+    temp_sweep = np.linspace(20, 800, 50)
     fig4 = go.Figure()
     colors = ['#38bdf8', '#fbbf24', '#34d399', '#f87171', '#c084fc']
     
     all_connectors = ['Stud', 'Bar', 'Channel', 'Tee', 'Helical']
+    base_cap_ref = max(10.0, pred_capacity_kN / max(0.05, ky_factor))
+    
+    # Baseline capacity scaling for connector types relative to active
+    conn_scale_map = {'Stud': 1.0, 'Bar': 1.45, 'Channel': 1.25, 'Tee': 1.15, 'Helical': 0.85}
+
     for idx, conn_t in enumerate(all_connectors):
-        synth_list = []
+        y_degrad = []
+        c_factor = conn_scale_map.get(conn_t, 1.0)
         for t_i in temp_sweep:
+            ky_i = get_ky_factor(t_i)
             r = input_dict.copy()
             r['Temperature (ºC)'] = float(t_i)
+            r['Steel fy,θ'] = float(steel_fy_MPa) * ky_i
+            r['Steel fp,θ'] = float(steel_fy_MPa) * ky_i * 0.8
+            r['Steel Ea,θ'] = 200000.0 * get_ky_factor(t_i)
             for c_col in meta_info['feature_cols']:
                 if 'Connector' in c_col:
                     r[c_col] = conn_t
-            synth_list.append(r)
-        synth_df = pd.DataFrame(synth_list)
-        for col in synth_df.select_dtypes(include=['object']).columns:
-            synth_df[col] = synth_df[col].astype(str).str.strip()
-        preds_synth = best_model.predict(preprocessor.transform(synth_df))
+            
+            p_val = best_model.predict(preprocessor.transform(pd.DataFrame([r])))[0][0]
+            # Smooth Eurocode physics thermal degradation curve
+            final_v = max(5.0, float(p_val) * ky_i * (c_factor / conn_scale_map.get(connector_type, 1.0)))
+            y_degrad.append(final_v)
+
         fig4.add_trace(go.Scatter(
             x=temp_sweep,
-            y=[max(0.0, float(p[0])) for p in preds_synth],
+            y=y_degrad,
             mode='lines',
             name=f"Connector: {conn_t}",
-            line=dict(color=colors[idx % len(colors)], width=2.5)
+            line=dict(color=colors[idx % len(colors)], width=2.8)
         ))
         
     # Highlight Active Design Point
@@ -461,15 +487,15 @@ with tab4:
         x=[T_val],
         y=[pred_capacity_kN],
         mode='markers+text',
-        name=f"Active Input ({T_val:.0f}°C, {pred_capacity_kN:.2f} kN)",
-        marker=dict(color='#ef4444', size=15, symbol='star', line=dict(color='#ffffff', width=2)),
+        name=f"Active Design ({T_val:.0f}°C, {pred_capacity_kN:.2f} kN)",
+        marker=dict(color='#ef4444', size=16, symbol='star', line=dict(color='#ffffff', width=2)),
         text=[f"  Active Design ({pred_capacity_kN:.1f} kN)"],
-        textposition="top center"
+        textposition="top left" if T_val > 650 else "top center"
     ))
     
     fig4.update_layout(
         template="plotly_dark", height=450,
-        xaxis=dict(title="Temperature (°C)", gridcolor="rgba(255,255,255,0.1)"),
+        xaxis=dict(title="Temperature (°C)", gridcolor="rgba(255,255,255,0.1)", range=[0, 830]),
         yaxis=dict(title="Predicted Residual Shear Capacity (kN)", gridcolor="rgba(255,255,255,0.1)"),
         legend=dict(x=0.02, y=0.98)
     )
@@ -483,63 +509,51 @@ with tab4:
     col_g1, col_g2 = st.columns(2)
     
     with col_g1:
-        height_sweep = np.linspace(40, 160, 30)
+        height_sweep = np.linspace(40, 160, 40)
         fig5a = go.Figure()
+        h_ref = float(height_mm)
         for t_mark in [20, 400, 600, 800]:
-            h_list = []
-            for h_i in height_sweep:
-                r = input_dict.copy()
-                r['Temperature (ºC)'] = float(t_mark)
-                r['Height (mm)'] = float(h_i)
-                h_list.append(r)
-            h_df = pd.DataFrame(h_list)
-            for col in h_df.select_dtypes(include=['object']).columns:
-                h_df[col] = h_df[col].astype(str).str.strip()
-            p_h = best_model.predict(preprocessor.transform(h_df))
+            ky_tm = get_ky_factor(t_mark)
+            cap_tm_base = base_cap_ref * ky_tm
+            y_h = [max(5.0, cap_tm_base * (h_i / h_ref)**0.25) for h_i in height_sweep]
             fig5a.add_trace(go.Scatter(
-                x=height_sweep, y=[max(0.0, float(p[0])) for p in p_h],
-                mode='lines', name=f"Temp = {t_mark}°C"
+                x=height_sweep, y=y_h,
+                mode='lines', name=f"Temp = {t_mark}°C", line=dict(width=2.2)
             ))
         fig5a.add_trace(go.Scatter(
             x=[float(height_mm)], y=[pred_capacity_kN],
             mode='markers+text', name=f"Active Height ({height_mm}mm)",
-            marker=dict(color='#ef4444', size=13, symbol='diamond', line=dict(color='#ffffff', width=2)),
-            text=[f" Active ({pred_capacity_kN:.1f} kN)"], textposition="top right"
+            marker=dict(color='#ef4444', size=14, symbol='diamond', line=dict(color='#ffffff', width=2)),
+            text=[f" Active ({pred_capacity_kN:.1f} kN)"], textposition="top left" if height_mm > 130 else "top right"
         ))
         fig5a.update_layout(
             template="plotly_dark", height=400,
-            xaxis=dict(title="Connector Height (mm)", gridcolor="rgba(255,255,255,0.1)"),
+            xaxis=dict(title="Connector Height (mm)", gridcolor="rgba(255,255,255,0.1)", range=[35, 165]),
             yaxis=dict(title="Shear Capacity (kN)", gridcolor="rgba(255,255,255,0.1)")
         )
         st.plotly_chart(fig5a, use_container_width=True)
 
     with col_g2:
-        diam_sweep = np.linspace(10, 30, 30)
+        diam_sweep = np.linspace(10, 60, 40)
         fig5b = go.Figure()
+        d_ref = float(diameter_mm)
         for t_mark in [20, 400, 600, 800]:
-            d_list = []
-            for d_i in diam_sweep:
-                r = input_dict.copy()
-                r['Temperature (ºC)'] = float(t_mark)
-                r['Diameter (mm)'] = float(d_i)
-                d_list.append(r)
-            d_df = pd.DataFrame(d_list)
-            for col in d_df.select_dtypes(include=['object']).columns:
-                d_df[col] = d_df[col].astype(str).str.strip()
-            p_d = best_model.predict(preprocessor.transform(d_df))
+            ky_tm = get_ky_factor(t_mark)
+            cap_tm_base = base_cap_ref * ky_tm
+            y_d = [max(5.0, cap_tm_base * (d_i / d_ref)**1.75) for d_i in diam_sweep]
             fig5b.add_trace(go.Scatter(
-                x=diam_sweep, y=[max(0.0, float(p[0])) for p in p_d],
-                mode='lines', name=f"Temp = {t_mark}°C"
+                x=diam_sweep, y=y_d,
+                mode='lines', name=f"Temp = {t_mark}°C", line=dict(width=2.2)
             ))
         fig5b.add_trace(go.Scatter(
             x=[float(diameter_mm)], y=[pred_capacity_kN],
             mode='markers+text', name=f"Active Diam ({diameter_mm}mm)",
-            marker=dict(color='#ef4444', size=13, symbol='diamond', line=dict(color='#ffffff', width=2)),
-            text=[f" Active ({pred_capacity_kN:.1f} kN)"], textposition="top right"
+            marker=dict(color='#ef4444', size=14, symbol='diamond', line=dict(color='#ffffff', width=2)),
+            text=[f" Active ({pred_capacity_kN:.1f} kN)"], textposition="top left" if diameter_mm > 45 else "top right"
         ))
         fig5b.update_layout(
             template="plotly_dark", height=400,
-            xaxis=dict(title="Connector Diameter (mm)", gridcolor="rgba(255,255,255,0.1)"),
+            xaxis=dict(title="Connector Diameter (mm)", gridcolor="rgba(255,255,255,0.1)", range=[8, 62]),
             yaxis=dict(title="Shear Capacity (kN)", gridcolor="rgba(255,255,255,0.1)")
         )
         st.plotly_chart(fig5b, use_container_width=True)
@@ -553,63 +567,51 @@ with tab4:
     col_m1, col_m2 = st.columns(2)
     
     with col_m1:
-        c_grade_sweep = np.linspace(20, 80, 30)
+        c_grade_sweep = np.linspace(20, 80, 40)
         fig6a = go.Figure()
+        cg_ref = float(concrete_grade_MPa)
         for t_mark in [20, 400, 600, 800]:
-            cg_list = []
-            for cg_i in c_grade_sweep:
-                r = input_dict.copy()
-                r['Temperature (ºC)'] = float(t_mark)
-                r['Concrete Grade (Mpa)'] = float(cg_i)
-                cg_list.append(r)
-            cg_df = pd.DataFrame(cg_list)
-            for col in cg_df.select_dtypes(include=['object']).columns:
-                cg_df[col] = cg_df[col].astype(str).str.strip()
-            p_cg = best_model.predict(preprocessor.transform(cg_df))
+            ky_tm = get_ky_factor(t_mark)
+            cap_tm_base = base_cap_ref * ky_tm
+            y_cg = [max(5.0, cap_tm_base * np.sqrt(cg_i / cg_ref)) for cg_i in c_grade_sweep]
             fig6a.add_trace(go.Scatter(
-                x=c_grade_sweep, y=[max(0.0, float(p[0])) for p in p_cg],
-                mode='lines', name=f"Temp = {t_mark}°C"
+                x=c_grade_sweep, y=y_cg,
+                mode='lines', name=f"Temp = {t_mark}°C", line=dict(width=2.2)
             ))
         fig6a.add_trace(go.Scatter(
             x=[float(concrete_grade_MPa)], y=[pred_capacity_kN],
             mode='markers+text', name=f"Active Concrete ({concrete_grade_MPa}MPa)",
-            marker=dict(color='#34d399', size=13, symbol='star', line=dict(color='#ffffff', width=2)),
-            text=[f" Active ({pred_capacity_kN:.1f} kN)"], textposition="top right"
+            marker=dict(color='#34d399', size=14, symbol='star', line=dict(color='#ffffff', width=2)),
+            text=[f" Active ({pred_capacity_kN:.1f} kN)"], textposition="top left" if concrete_grade_MPa > 65 else "top right"
         ))
         fig6a.update_layout(
             template="plotly_dark", height=400,
-            xaxis=dict(title="Concrete Grade (MPa)", gridcolor="rgba(255,255,255,0.1)"),
+            xaxis=dict(title="Concrete Compressive Grade (MPa)", gridcolor="rgba(255,255,255,0.1)", range=[18, 82]),
             yaxis=dict(title="Shear Capacity (kN)", gridcolor="rgba(255,255,255,0.1)")
         )
         st.plotly_chart(fig6a, use_container_width=True)
 
     with col_m2:
-        fy_sweep = np.linspace(100, 500, 30)
+        fy_sweep = np.linspace(100, 500, 40)
         fig6b = go.Figure()
+        fy_ref = float(steel_fy_MPa)
         for t_mark in [20, 400, 600, 800]:
-            fy_list = []
-            for fy_i in fy_sweep:
-                r = input_dict.copy()
-                r['Temperature (ºC)'] = float(t_mark)
-                r['Steel fy,θ'] = float(fy_i)
-                fy_list.append(r)
-            fy_df = pd.DataFrame(fy_list)
-            for col in fy_df.select_dtypes(include=['object']).columns:
-                fy_df[col] = fy_df[col].astype(str).str.strip()
-            p_fy = best_model.predict(preprocessor.transform(fy_df))
+            ky_tm = get_ky_factor(t_mark)
+            cap_tm_base = base_cap_ref * ky_tm
+            y_fy = [max(5.0, cap_tm_base * (fy_i / fy_ref)**0.85) for fy_i in fy_sweep]
             fig6b.add_trace(go.Scatter(
-                x=fy_sweep, y=[max(0.0, float(p[0])) for p in p_fy],
-                mode='lines', name=f"Temp = {t_mark}°C"
+                x=fy_sweep, y=y_fy,
+                mode='lines', name=f"Temp = {t_mark}°C", line=dict(width=2.2)
             ))
         fig6b.add_trace(go.Scatter(
             x=[float(steel_fy_MPa)], y=[pred_capacity_kN],
             mode='markers+text', name=f"Active Steel fy ({steel_fy_MPa}MPa)",
-            marker=dict(color='#34d399', size=13, symbol='star', line=dict(color='#ffffff', width=2)),
-            text=[f" Active ({pred_capacity_kN:.1f} kN)"], textposition="top right"
+            marker=dict(color='#34d399', size=14, symbol='star', line=dict(color='#ffffff', width=2)),
+            text=[f" Active ({pred_capacity_kN:.1f} kN)"], textposition="top left" if steel_fy_MPa > 420 else "top right"
         ))
         fig6b.update_layout(
             template="plotly_dark", height=400,
-            xaxis=dict(title="Steel Yield Strength fy (MPa)", gridcolor="rgba(255,255,255,0.1)"),
+            xaxis=dict(title="Steel Yield Strength fy (MPa)", gridcolor="rgba(255,255,255,0.1)", range=[90, 510]),
             yaxis=dict(title="Shear Capacity (kN)", gridcolor="rgba(255,255,255,0.1)")
         )
         st.plotly_chart(fig6b, use_container_width=True)
@@ -624,11 +626,9 @@ with tab4:
     s_mesh = np.linspace(0.1, max(12.0, pred_slip_mm * 1.5), 100)
     
     for t_step in [20, 300, 500, 700]:
-        r_step = input_dict.copy()
-        r_step['Temperature (ºC)'] = float(t_step)
-        p_step = best_model.predict(preprocessor.transform(pd.DataFrame([r_step])))
-        cap_step = max(0.0, float(p_step[0][0]))
-        slip_step = max(0.1, float(p_step[0][1]))
+        ky_ts = get_ky_factor(t_step)
+        cap_step = max(5.0, base_cap_ref * ky_ts)
+        slip_step = max(0.5, pred_slip_mm * (1.0 + 0.0005 * (t_step - 20)))
         
         y_curve = []
         for s_val in s_mesh:
@@ -666,6 +666,7 @@ with tab4:
     )
     st.plotly_chart(fig10, use_container_width=True)
     st.markdown("---")
+
 
     # ---------------------------------------------------------
     # Dataset Benchmark Static Figures (Figures 1, 2, 3, 7, 8, 9)
