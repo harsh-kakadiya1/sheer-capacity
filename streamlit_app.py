@@ -314,10 +314,11 @@ for s in slip_steps:
 # -----------------------------------------------------------------------------
 # App Layout Tabs
 # -----------------------------------------------------------------------------
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📈 Load-Slip Prediction",
     "🔍 Explainable AI (SHAP Plots)",
     "📊 Model Benchmarks",
+    "🖼️ Paper-Aligned Graph Gallery",
     "📘 Executive Report & Guide"
 ])
 
@@ -417,10 +418,39 @@ with tab3:
     st.dataframe(benchmark_df, use_container_width=True, hide_index=True)
 
 # -----------------------------------------------------------------------------
-# Tab 4: Executive Report & Guide
+# Tab 4: Paper-Aligned Graph Gallery
 # -----------------------------------------------------------------------------
 with tab4:
+    st.subheader("🖼️ Publication-Quality Paper Prediction Graphs & Sensitivity Suite")
+    st.caption("Comprehensive figures generated from reference paper methodologies using our 1,235 specimen dataset.")
+
+    gallery_figures = [
+        ("Figure 1: Pearson Correlation Coefficient Matrix", "results/fig1_pearson_correlation_matrix.png"),
+        ("Figure 2: Actual vs. Predicted Performance Across AI Algorithms", "results/fig2_actual_vs_predicted_all_models.png"),
+        ("Figure 3: Test Specimen Prediction Tracking Comparison", "results/fig3_sample_testing_predictions_tracking.png"),
+        ("Figure 4: Thermal Degradation Curves across Connector Types (20°C - 800°C)", "results/fig4_parametric_temperature_degradation.png"),
+        ("Figure 5: Influence of Connector Geometry (Height & Diameter)", "results/fig5_parametric_connector_geometry.png"),
+        ("Figure 6: Influence of Material Strengths (Concrete Grade & Steel Yield)", "results/fig6_parametric_material_strengths.png"),
+        ("Figure 7: Residual Error Distributions across AI Algorithms", "results/fig7_residual_error_distributions.png"),
+        ("Figure 8: SHAP Feature Importance Summary (Ultimate Shear Capacity)", "results/fig8_shap_summary_and_feature_importance.png"),
+        ("Figure 9: SHAP Dependence Plots for Dominant Parameters", "results/fig9_shap_dependence_plots.png"),
+        ("Figure 10: AI-Predicted Non-Linear Load-Slip Curves at Elevated Temperatures", "results/fig10_load_slip_curves_multitemp.png"),
+    ]
+
+    for title, img_path in gallery_figures:
+        st.markdown(f"#### {title}")
+        if os.path.exists(img_path):
+            st.image(img_path, use_column_width=True)
+        else:
+            st.warning(f"Image not found at {img_path}. Run training pipeline to generate.")
+        st.markdown("---")
+
+# -----------------------------------------------------------------------------
+# Tab 5: Executive Report & Guide
+# -----------------------------------------------------------------------------
+with tab5:
     if os.path.exists('PROJECT_GUIDE_AND_EXECUTIVE_REPORT.md'):
         with open('PROJECT_GUIDE_AND_EXECUTIVE_REPORT.md', 'r', encoding='utf-8') as f:
             report_md = f.read()
         st.markdown(report_md)
+

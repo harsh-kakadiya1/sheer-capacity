@@ -27,17 +27,23 @@ Shear-Capacity-of-Composite-Concrete-Structure/
 │   ├── preprocessor.joblib                # Feature scaler & One-Hot encoder pipeline
 │   └── metadata.json                      # Column names, feature lists, & model metadata
 ├── results/                                # Output graphs, SHAP explainability charts, & performance summaries
+│   ├── fig1_pearson_correlation_matrix.png # Pearson correlation heatmap across all 25 features
+│   ├── fig2_actual_vs_predicted_all_models.png # 4-panel comparison scatter plots (XGBoost, RF, DT, MLP)
+│   ├── fig3_sample_testing_predictions_tracking.png # Sample-by-sample test specimen tracking chart
+│   ├── fig4_parametric_temperature_degradation.png # Residual capacity degradation curves (20°C - 800°C)
+│   ├── fig5_parametric_connector_geometry.png # Connector Height & Diameter vs. Capacity curves
+│   ├── fig6_parametric_material_strengths.png # Concrete Grade & Steel Yield Strength vs. Capacity curves
+│   ├── fig7_residual_error_distributions.png # Prediction error distribution histograms & KDE
+│   ├── fig8_shap_summary_and_feature_importance.png # SHAP feature importance summary dot plots
+│   ├── fig9_shap_dependence_plots.png     # SHAP dependence interaction plots for top parameters
+│   ├── fig10_load_slip_curves_multitemp.png# Non-linear load-slip curves at elevated temperatures
 │   ├── metrics_summary.json               # Detailed R², RMSE, & MAE error metrics for all models
-│   ├── test_predictions.csv               # Actual vs. predicted capacity & slip values for test dataset
-│   ├── shap_summary_shear.png             # SHAP feature importance plot for Shear Capacity
-│   ├── shap_summary_slip.png              # SHAP feature importance plot for Slip
-│   ├── actual_vs_predicted_capacity.png   # Scatter plot of actual vs predicted Ultimate Shear Capacity (kN)
-│   ├── actual_vs_predicted_slip.png       # Scatter plot of actual vs predicted Slip (mm)
-│   └── load_slip_curve_samples.png        # Graphical overlay of AI-predicted vs. actual non-linear curves
+│   └── test_predictions.csv               # Actual vs. predicted capacity & slip values for test dataset
 ├── src/                                    # Python source code modules
 │   ├── train_models.py                    # Script to load data, clean inputs, train 4 AI models, & evaluate metrics
-│   └── explainability_and_plots.py        # Script to run SHAP analysis and save high-resolution plots
-├── streamlit_app.py                       # Native Streamlit Web Application (Interactive Predictive Design Tool)
+│   ├── generate_paper_graphs.py           # Comprehensive paper-aligned figure & parametric plot generator
+│   └── explainability_and_plots.py        # Wrapper script for SHAP analysis and visual graph generation
+├── streamlit_app.py                       # Native Streamlit Web Application (Interactive Tool & 5-Tab Gallery)
 ├── Run_App.bat                            # 1-Click Windows shortcut launcher to open Streamlit automatically
 ├── shear_capacity_analysis.ipynb          # Self-contained Jupyter Notebook for interactive execution & reporting
 ├── readme.txt                             # Foundational project instructions and 4-step AI integration roadmap
