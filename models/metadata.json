@@ -1,0 +1,59 @@
+{
+    "feature_cols": [
+        "Temperature (\u00baC)",
+        "Connector type",
+        "Diameter (mm)",
+        "Height (mm)",
+        "Concrete Grade (Mpa)",
+        "ASTM Fire Exposure Time (minute)",
+        "ISO Fire Exposure Time (minute)",
+        "Steel fy,\u03b8",
+        "Steel fp,\u03b8",
+        "Steel Ea,\u03b8",
+        "Steel \u025bp,\u03b8",
+        "Concrete Thermal Expansion (m-1C-1)",
+        "Concrete Conductivity (W/mK)",
+        "Concrete Specific Heat (J/kgK)",
+        "Concrete Poisson's ratio, \u03bc",
+        "Concrete Elastic Modulus (N/mm2)",
+        "Concrete Compressive Strength (N/mm2)",
+        "Steel Conductivity (W/mK)",
+        "Steel Specific Heat (J/kgK)",
+        "Steel Poisson's ratio, \u03bc",
+        "Steel Thermal Expansion (m-1C-1)",
+        "Reduction factor (relative to fy) for effective yield strength ky,\u03b8 =fy,\u03b8/fy",
+        "Reduction factor (relative to fy) for effective elastic modulos kE,\u03b8 =Ea,\u03b8/Ea"
+    ],
+    "cat_cols": [
+        "Connector type"
+    ],
+    "num_cols": [
+        "Temperature (\u00baC)",
+        "Diameter (mm)",
+        "Height (mm)",
+        "Concrete Grade (Mpa)",
+        "ASTM Fire Exposure Time (minute)",
+        "ISO Fire Exposure Time (minute)",
+        "Steel fy,\u03b8",
+        "Steel fp,\u03b8",
+        "Steel Ea,\u03b8",
+        "Steel \u025bp,\u03b8",
+        "Concrete Thermal Expansion (m-1C-1)",
+        "Concrete Conductivity (W/mK)",
+        "Concrete Specific Heat (J/kgK)",
+        "Concrete Poisson's ratio, \u03bc",
+        "Concrete Elastic Modulus (N/mm2)",
+        "Concrete Compressive Strength (N/mm2)",
+        "Steel Conductivity (W/mK)",
+        "Steel Specific Heat (J/kgK)",
+        "Steel Poisson's ratio, \u03bc",
+        "Steel Thermal Expansion (m-1C-1)",
+        "Reduction factor (relative to fy) for effective yield strength ky,\u03b8 =fy,\u03b8/fy",
+        "Reduction factor (relative to fy) for effective elastic modulos kE,\u03b8 =Ea,\u03b8/Ea"
+    ],
+    "targets": [
+        "Ultimate Shear Capacity (kN)",
+        "Slip (mm)"
+    ],
+    "best_model_name": "XGBoost"
+}
